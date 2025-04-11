@@ -1,0 +1,34 @@
+{
+  "name": "structurizr-dsl-debugger",
+  "version": "1.0.0",
+  "description": "Structurizr DSL Debugger for Cursor IDE",
+  "main": "structurizr-dsl-debugger-mcp.js",
+  "bin": {
+    "structurizr-dsl-debugger": "./launch-structurizr-debugger.js"
+  },
+  "scripts": {
+    "start": "node structurizr-dsl-debugger-mcp.js",
+    "debug": "node launch-structurizr-debugger.js",
+    "debug:port": "node launch-structurizr-debugger.js --port",
+    "browser": "node browser-error-mcp.js",
+    "setup": "node setup-cursor-config.js",
+    "capture": "node capture-errors.js",
+    "errors": "node get-dsl-errors.js"
+  },
+  "keywords": [
+    "structurizr",
+    "dsl",
+    "debugger",
+    "cursor",
+    "mcp",
+    "architecture"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.9.5",
+    "express": "^4.18.2",
+    "puppeteer": "^21.4.1",
+    "zod": "^3.22.4"
+  }
+}
