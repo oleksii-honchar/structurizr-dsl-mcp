@@ -414,4 +414,4 @@ server.connect(transport);
 console.log('"Structurizr DSL Error Capture" MCP Server running');
 
 // Test the processDslError function with an example error
-processDslError('workspace.dsl: Unexpected tokens (expected: include, exclude, autolayout, default, animation, title, description, properties) at line 776 of /usr/local/structurizr/workspace.dsl: dynamic "ErrorHandlingFlow" {'); 
+// processDslError('workspace.dsl: Unexpected tokens (expected: include, exclude, autolayout, default, animation, title, description, properties) at line 776 of /usr/local/structurizr/workspace.dsl: dynamic "ErrorHandlingFlow" {'); 
