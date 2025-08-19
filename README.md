@@ -22,7 +22,7 @@ A specialized tool for debugging Structurizr DSL syntax issues in Cursor IDE. Th
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/your-username/structurizr-dsl-debugger.git
+   git clone git@github.com:oleksii-honchar/structurizr-dsl-mcp.git
    cd structurizr-dsl-debugger
    ```
 
@@ -31,37 +31,27 @@ A specialized tool for debugging Structurizr DSL syntax issues in Cursor IDE. Th
    npm install
    ```
 
-3. Set up Cursor IDE integration:
+3. Set up Cursor IDE integration automatically or manually:
    ```bash
    npm run setup
    ```
 
 ## Usage
 
-### Starting Structurizr
+1. Run Structurizr Lite in DSL workspace folder:
 
-1. Run Structurizr Lite (if not already running):
    ```bash
-   docker run -it --rm -p 8080:8080 -v /path/to/workspace:/workspace structurizr/lite
+   docker run -it --rm -p 8080:8080 "$PWD":/usr/local/structurizr structurizr/lite
    ```
 
-### Using the Debugger
+2. Launch Chrome with remote debugging enabled:
 
-1. Launch Chrome with remote debugging enabled:
    ```bash
+   # probably you need to add alias in you rc file, e.g. ~/.zshrc
+   alias google-chrome="/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome"
+
+   # then in terminal
    google-chrome --remote-debugging-port=9222 http://localhost:8080
-   ```
-
-2. Start the DSL debugger:
-   ```bash
-   # Standard start (default port 8080)
-   npm start
-   
-   # With custom Structurizr port
-   STRUCTURIZR_PORT=9090 npm start
-   
-   # Using the launcher with interactive prompts
-   npm run debug
    ```
 
 3. In Cursor IDE, use the MCP tools:
@@ -72,20 +62,7 @@ A specialized tool for debugging Structurizr DSL syntax issues in Cursor IDE. Th
    fixDslError: { "line": 776, "fix": "dynamic ContainerName ErrorHandlingFlow {" }
    ```
 
-### Simplified Version
-
-If you encounter issues with the main debugger, try the simplified version:
-
-```bash
-node simplified-dsl-debugger.js
-```
-
-With shorter MCP tool names:
-```
-connect: { "port": 9222 }
-errors: { "count": 5 }
-fix: { "line": 776, "solution": "dynamic ContainerName ErrorHandlingFlow {" }
-```
+**Note**: Cursor will start MCP server by itself, one don't need to start it manually
 
 ### Utility Scripts
 
@@ -108,7 +85,6 @@ fix: { "line": 776, "solution": "dynamic ContainerName ErrorHandlingFlow {" }
 
 ### MCP Tool Issues
 - Verify the MCP server is running: `npm start`
-- Try using the simplified version: `node simplified-dsl-debugger.js`
 - Check the logs directory for captured errors
 - Restart Cursor IDE
 
@@ -117,6 +93,15 @@ fix: { "line": 776, "solution": "dynamic ContainerName ErrorHandlingFlow {" }
 - If another application is using port 8080, you can:
   - Change the Structurizr port
   - Update the debugger to use the new port: `STRUCTURIZR_PORT=9090 npm start`
+
+## Tools not updated in Cursor
+
+When MCP tool source code changed Cursor starts new process, so you need to delete old ones if it was not able to gracefully delete them. When Cursor restarted it start 4 processes for MCP tool. So, close Cursor, then use grep to find node zombie processes and deleted them
+
+```bash
+ps aux | grep structurizr-dsl-debugger-mcp.js
+sudo kill -9 <>
+```
 
 ## License
 

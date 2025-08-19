@@ -34,19 +34,23 @@ if (!fs.existsSync(CONFIG.dslLogFile)) {
 }
 
 // Set up MCP server
-const mcp = new McpServer({
+const server = new McpServer({
   name: 'structurizr-dsl-debugger',
-  version: '1.0.0',
+  version: '1.1.0',
   description: 'Captures and processes Structurizr DSL errors for debugging in Cursor IDE'
 });
 
 // Browser launch tool
-mcp.tool(
+server.registerTool(
   'launchBrowser',
   {
-    url: z.string().describe('The URL to navigate to'),
-    headless: z.boolean().default(false).describe('Whether to run the browser in headless mode'),
-    structurizrPort: z.number().default(CONFIG.structurizrPort).describe('The port Structurizr is running on')
+    title: 'Launch Browser',
+    description: 'Launches a browser instance for Structurizr debugging with error monitoring',
+    inputSchema: {
+      url: z.string().describe('The URL to navigate to').optional(),
+      headless: z.boolean().default(false).describe('Whether to run the browser in headless mode'),
+      structurizrPort: z.number().default(CONFIG.structurizrPort).describe('The port Structurizr is running on')
+    }
   },
   async ({ url, headless = false, structurizrPort = CONFIG.structurizrPort }) => {
     try {
@@ -98,24 +102,33 @@ mcp.tool(
       });
       
       return {
-        message: `Browser launched and navigated to ${url}`,
-        note: "Error monitoring has been set up for Structurizr DSL errors"
+        content: [{
+          type: "text",
+          text: `Browser launched and navigated to ${url}\nNote: Error monitoring has been set up for Structurizr DSL errors`
+        }]
       };
     } catch (error) {
       console.error('Error launching browser:', error);
       return {
-        error: `Failed to launch browser: ${error.message}`
+        content: [{
+          type: "text",
+          text: `Failed to launch browser: ${error.message}`
+        }]
       };
     }
   }
 );
 
 // Connect to existing browser
-mcp.tool(
+server.registerTool(
   'connectToBrowser',
   {
-    debugPort: z.number().default(CONFIG.debugPort).describe('The debugging port of the browser'),
-    structurizrPort: z.number().default(CONFIG.structurizrPort).describe('The port Structurizr is running on')
+    title: 'Connect to Browser',
+    description: 'Connects to an existing browser instance running in debug mode',
+    inputSchema: {
+      debugPort: z.number().default(CONFIG.debugPort).describe('The debugging port of the browser'),
+      structurizrPort: z.number().default(CONFIG.structurizrPort).describe('The port Structurizr is running on')
+    }
   },
   async ({ debugPort = CONFIG.debugPort, structurizrPort = CONFIG.structurizrPort }) => {
     try {
@@ -126,15 +139,23 @@ mcp.tool(
       
       const pages = await browser.pages();
       if (pages.length === 0) {
-        return { error: 'No pages found in the browser' };
+        return {
+          content: [{
+            type: "text",
+            text: "No pages found in the browser"
+          }]
+        };
       }
       
       // Find Structurizr page with customizable port
       const structurizrPage = pages.find(page => page.url().includes(`localhost:${structurizrPort}`));
       if (!structurizrPage) {
-        return { 
-          error: `Structurizr page not found on port ${structurizrPort}`,
-          availablePages: await Promise.all(pages.map(p => p.url()))
+        const availablePages = await Promise.all(pages.map(p => p.url()));
+        return {
+          content: [{
+            type: "text",
+            text: `Structurizr page not found on port ${structurizrPort}\nAvailable pages: ${availablePages.join(', ')}`
+          }]
         };
       }
       
@@ -146,98 +167,155 @@ mcp.tool(
       });
       
       return {
-        message: `Connected to Structurizr page at ${await structurizrPage.url()}`,
-        note: "Error monitoring has been set up for DSL errors"
+        content: [{
+          type: "text",
+          text: `Connected to Structurizr page at ${await structurizrPage.url()}\nNote: Error monitoring has been set up for DSL errors`
+        }]
       };
     } catch (error) {
       console.error('Error connecting to browser:', error);
       return {
-        error: `Failed to connect to browser: ${error.message}`
+        content: [{
+          type: "text",
+          text: `Failed to connect to browser: ${error.message}`
+        }]
       };
     }
   }
 );
 
 // Get DSL errors
-mcp.tool(
+server.registerTool(
   'getDslErrors',
   {
-    count: z.number().default(10).describe('Number of recent DSL errors to retrieve')
+    title: 'Get DSL Errors',
+    description: 'Retrieves recent Structurizr DSL errors from the log file',
+    inputSchema: {
+      count: z.number().int().min(1).max(100).default(10).describe('Number of recent DSL errors to retrieve')
+    }
   },
   async ({ count = 10 }) => {
     try {
       // Read DSL errors
       const errors = JSON.parse(fs.readFileSync(CONFIG.dslLogFile, 'utf-8'));
+      const recentErrors = errors.slice(-count);
+      
+      if (recentErrors.length === 0) {
+        return {
+          content: [{
+            type: "text",
+            text: "No DSL errors found in the log"
+          }]
+        };
+      }
+      
+      const errorSummary = recentErrors.map((error, index) => 
+        `${index + 1}. ${error.message} (Line ${error.line} in ${error.file})`
+      ).join('\n');
       
       return {
-        errors: errors.slice(-count)
+        content: [{
+          type: "text",
+          text: `Found ${recentErrors.length} recent DSL errors:\n\n${errorSummary}\n\nDetailed errors: ${JSON.stringify(recentErrors, null, 2)}`
+        }]
       };
     } catch (error) {
       console.error('Error retrieving DSL errors:', error);
       return {
-        error: `Failed to retrieve DSL errors: ${error.message}`
+        content: [{
+          type: "text",
+          text: `Failed to retrieve DSL errors: ${error.message}`
+        }]
       };
     }
   }
 );
 
 // Clear DSL errors
-mcp.tool(
+server.registerTool(
   'clearDslErrors',
-  {},
+  {
+    title: 'Clear DSL Errors',
+    description: 'Clears all DSL errors from the log file',
+    inputSchema: {}
+  },
   async () => {
     try {
       fs.writeFileSync(CONFIG.dslLogFile, '[]', 'utf-8');
       return {
-        message: 'DSL error log cleared'
+        content: [{
+          type: "text",
+          text: "DSL error log cleared successfully"
+        }]
       };
     } catch (error) {
       console.error('Error clearing DSL log:', error);
       return {
-        error: `Failed to clear DSL error log: ${error.message}`
+        content: [{
+          type: "text",
+          text: `Failed to clear DSL error log: ${error.message}`
+        }]
       };
     }
   }
 );
 
 // Fix DSL error
-mcp.tool(
+server.registerTool(
   'fixDslError',
   {
-    line: z.number().describe('Line number of the error'),
-    fix: z.string().describe('Suggested fix for the error')
+    title: 'Fix DSL Error',
+    description: 'Provides suggested fixes for DSL errors at specific line numbers',
+    inputSchema: {
+      line: z.number().int().min(1).describe('Line number of the error'),
+      fix: z.string().describe('Suggested fix for the error')
+    }
   },
   async ({ line, fix }) => {
     return {
-      message: `Suggested fix for line ${line}: ${fix}`,
-      note: "This is a suggestion only. To apply the fix, you should edit the workspace.dsl file."
+      content: [{
+        type: "text",
+        text: `Suggested fix for line ${line}: ${fix}\n\nNote: This is a suggestion only. To apply the fix, you should edit the workspace.dsl file manually.`
+      }]
     };
   }
 );
 
 // Manually process a DSL error
-mcp.tool(
+server.registerTool(
   'processDslError',
   {
-    errorText: z.string().describe('The DSL error text to process')
+    title: 'Process DSL Error',
+    description: 'Manually processes and parses a DSL error text to extract structured error information',
+    inputSchema: {
+      errorText: z.string().describe('The DSL error text to process')
+    }
   },
   async ({ errorText }) => {
     try {
       const dslError = processDslError(errorText);
       if (dslError) {
         return {
-          message: 'DSL error processed successfully',
-          error: dslError
+          content: [{
+            type: "text",
+            text: `DSL error processed successfully:\n\nError: ${dslError.message}\nFile: ${dslError.filename}\nLine: ${dslError.line}\nContext: ${dslError.context}\n\nSuggestion:\n${dslError.suggestion.issue}\nFix: ${dslError.suggestion.fix}`
+          }]
         };
       } else {
         return {
-          error: 'Failed to parse DSL error format'
+          content: [{
+            type: "text",
+            text: "Failed to parse DSL error format. Please ensure the error text follows the expected Structurizr DSL error format."
+          }]
         };
       }
     } catch (error) {
       console.error('Error processing DSL error:', error);
       return {
-        error: `Failed to process DSL error: ${error.message}`
+        content: [{
+          type: "text",
+          text: `Failed to process DSL error: ${error.message}`
+        }]
       };
     }
   }
@@ -332,8 +410,8 @@ function getSuggestionForError(message, context) {
 
 // Start the MCP server with stdio transport
 const transport = new StdioServerTransport();
-mcp.connect(transport);
-console.log('Structurizr DSL Error Capture MCP Server running');
+server.connect(transport);
+console.log('"Structurizr DSL Error Capture" MCP Server running');
 
 // Test the processDslError function with an example error
 processDslError('workspace.dsl: Unexpected tokens (expected: include, exclude, autolayout, default, animation, title, description, properties) at line 776 of /usr/local/structurizr/workspace.dsl: dynamic "ErrorHandlingFlow" {'); 
